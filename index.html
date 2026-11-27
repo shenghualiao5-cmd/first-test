@@ -1,69 +1,1208 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello EdgeOne Pages — 部署已跑通</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: linear-gradient(135deg, #064e3b 0%, #0f172a 55%, #1e3a8a 100%);
-      color: #f8fafc;
-    }
-    main {
-      text-align: center;
-      padding: 2.5rem 2rem;
-      border-radius: 20px;
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      backdrop-filter: blur(12px);
-      max-width: 560px;
-      width: 90%;
-    }
-    .badge {
-      display: inline-block;
-      padding: 0.35rem 0.9rem;
-      border-radius: 999px;
-      background: rgba(16, 185, 129, 0.2);
-      border: 1px solid rgba(52, 211, 153, 0.5);
-      color: #6ee7b7;
-      font-size: 0.875rem;
-      font-weight: 600;
-      margin-bottom: 1.25rem;
-    }
-    h1 {
-      font-size: clamp(2rem, 5.5vw, 3.5rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.75rem;
-    }
-    p {
-      font-size: 1.05rem;
-      color: #cbd5e1;
-      line-height: 1.6;
-    }
-    .meta {
-      margin-top: 1.5rem;
-      font-size: 0.875rem;
-      color: #94a3b8;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>海边老鹰骑自行车</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--foreground, #e5e7eb);
+    width: 100%;
+  }
+  .stage-wrap {
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border, rgba(255,255,255,0.14));
+    background: #87ceeb;
+  }
+  .canvas-box {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 260px;
+    max-height: 480px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #38bdf8 0%, #93c5fd 60%, #fef3c7 100%);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--card, #18181b);
+    color: var(--card-foreground, #f4f4f5);
+    border-top: 1px solid var(--border, rgba(255,255,255,0.12));
+    font-size: 13px;
+  }
+  .btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  button {
+    appearance: none;
+    border: 1px solid var(--border, rgba(255,255,255,0.18));
+    background: var(--muted, #27272a);
+    color: var(--foreground, #f4f4f5);
+    padding: 5px 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  button:hover {
+    background: var(--accent, #3f3f46);
+  }
+  button:active {
+    transform: scale(0.96);
+  }
+  button.active {
+    background: #0284c7;
+    border-color: #38bdf8;
+    color: #ffffff;
+  }
+  .hint {
+    color: var(--muted-foreground, #a1a1aa);
+    font-size: 12px;
+  }
+</style>
 </head>
 <body>
-  <main>
-    <div class="badge">● 自动部署测试成功</div>
-    <h1>Hello, EdgeOne Pages!</h1>
-    <p>GitHub <code>main</code> 分支更新已成功同步到 EdgeOne Pages。</p>
-    <p class="meta">更新时间：2026-11-28 01:40 (UTC+8)</p>
-  </main>
+<div class="stage-wrap">
+  <div class="canvas-box">
+    <canvas id="scene"></canvas>
+  </div>
+  <div class="controls">
+    <div class="btn-group">
+      <button id="btnSlow" class="active">悠闲骑行</button>
+      <button id="btnFast">海风冲刺</button>
+      <button id="btnBell">按铃展翅</button>
+      <button id="btnPause">暂停</button>
+    </div>
+    <span class="hint">点击画面也可以让老鹰鸣叫展翅</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('scene');
+  const ctx = canvas.getContext('2d');
+
+  // Logical coordinate system (16:9)
+  const W = 960;
+  const H = 540;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cw = Math.max(300, Math.round(rect.width * dpr));
+    const ch = Math.max(180, Math.round(rect.height * dpr));
+    if (canvas.width !== cw || canvas.height !== ch) {
+      canvas.width = cw;
+      canvas.height = ch;
+    }
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // State
+  let speed = 1.0;        // 1.0 = leisure, 2.1 = sprint
+  let targetSpeed = 1.0;
+  let paused = false;
+  let t = 0;
+  let dist = 0;
+  let pedalAngle = 0;
+  let cheerTimer = 0;     // triggers wing flap + beak call + bell ring
+  let bellRipples = [];
+
+  // Static/looping scene elements
+  const clouds = [
+    { x: 110, y: 78, s: 1.05, v: 9 },
+    { x: 370, y: 54, s: 0.82, v: 6 },
+    { x: 640, y: 92, s: 1.25, v: 11 },
+    { x: 870, y: 62, s: 0.72, v: 7.5 },
+    { x: 1090, y: 84, s: 0.95, v: 8.5 }
+  ];
+
+  const gulls = [
+    { x: 240, y: 120, phase: 0.2, s: 0.9, v: 26 },
+    { x: 520, y: 95, phase: 1.8, s: 0.75, v: 32 },
+    { x: 760, y: 138, phase: 3.1, s: 0.85, v: 22 }
+  ];
+
+  const boats = [
+    { x: 210, y: 246, s: 0.85, color: '#ef4444', v: 7 },
+    { x: 720, y: 238, s: 0.65, color: '#f59e0b', v: 5 }
+  ];
+
+  // Beachgoers & props positioned along a 1500px repeating loop
+  const LOOP = 1500;
+  const palms = [120, 480, 890, 1260];
+  const umbrellas = [
+    { x: 190, y: 344, c1: '#ef4444', c2: '#ffffff', hasLounger: true },
+    { x: 660, y: 340, c1: '#0ea5e9', c2: '#fef08a', hasLounger: true },
+    { x: 1140, y: 346, c1: '#10b981', c2: '#ffffff', hasLounger: true }
+  ];
+
+  // Tourists: walkers, kite-flyer, photographer, swimmer
+  const tourists = [
+    { type: 'walker', x: 310, y: 368, shirt: '#f97316', shorts: '#1d4ed8', hair: '#27272a', dir: -1, phase: 0.4 },
+    { type: 'walker', x: 350, y: 372, shirt: '#ec4899', shorts: '#f8fafc', hair: '#78350f', dir: -1, phase: 1.9 },
+    { type: 'kite',   x: 520, y: 356, shirt: '#eab308', shorts: '#0f766e', hair: '#18181b', phase: 0.8 },
+    { type: 'photo',  x: 820, y: 366, shirt: '#6366f1', shorts: '#334155', hair: '#451a03', phase: 2.2 },
+    { type: 'walker', x: 980, y: 360, shirt: '#14b8a6', shorts: '#f59e0b', hair: '#1e293b', dir: 1, phase: 1.1 },
+    { type: 'swimmer',x: 430, y: 302, cap: '#f43f5e', phase: 0.5 },
+    { type: 'swimmer',x: 1050,y: 298, cap: '#38bdf8', phase: 2.7 },
+    { type: 'walker', x: 1350,y: 368, shirt: '#8b5cf6', shorts: '#e2e8f0', hair: '#292524', dir: -1, phase: 3.0 }
+  ];
+
+  // Controls
+  const btnSlow = document.getElementById('btnSlow');
+  const btnFast = document.getElementById('btnFast');
+  const btnBell = document.getElementById('btnBell');
+  const btnPause = document.getElementById('btnPause');
+
+  function triggerCheer() {
+    cheerTimer = 1.35;
+    bellRipples.push({ r: 8, alpha: 1 });
+    bellRipples.push({ r: 2, alpha: 0.85, delay: 0.14 });
+  }
+
+  btnSlow.addEventListener('click', () => {
+    targetSpeed = 1.0;
+    paused = false;
+    btnSlow.classList.add('active');
+    btnFast.classList.remove('active');
+    btnPause.textContent = '暂停';
+  });
+  btnFast.addEventListener('click', () => {
+    targetSpeed = 2.15;
+    paused = false;
+    btnFast.classList.add('active');
+    btnSlow.classList.remove('active');
+    btnPause.textContent = '暂停';
+    triggerCheer();
+  });
+  btnBell.addEventListener('click', () => {
+    if (paused) { paused = false; btnPause.textContent = '暂停'; }
+    triggerCheer();
+  });
+  btnPause.addEventListener('click', () => {
+    paused = !paused;
+    btnPause.textContent = paused ? '继续' : '暂停';
+  });
+  canvas.addEventListener('click', () => {
+    if (paused) { paused = false; btnPause.textContent = '暂停'; }
+    triggerCheer();
+  });
+
+  // Helper: wrap x into [-120, LOOP - 120]
+  function wrapX(baseX, scroll) {
+    let x = (baseX - scroll) % LOOP;
+    if (x < -140) x += LOOP;
+    return x;
+  }
+
+  // 2-bone IK solver for eagle legs pedaling
+  function solveIK(hx, hy, px, py, L1, L2, bendDir) {
+    const dx = px - hx;
+    const dy = py - hy;
+    const d = Math.min(Math.hypot(dx, dy), L1 + L2 - 0.5);
+    const a = Math.atan2(dy, dx);
+    const cosAngle = Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d)));
+    const angle = Math.acos(cosAngle);
+    const kneeAngle = a + bendDir * angle;
+    return {
+      kx: hx + Math.cos(kneeAngle) * L1,
+      ky: hy + Math.sin(kneeAngle) * L1
+    };
+  }
+
+  function drawSkyAndSun() {
+    const sky = ctx.createLinearGradient(0, 0, 0, 260);
+    sky.addColorStop(0, '#0ea5e9');
+    sky.addColorStop(0.55, '#60a5fa');
+    sky.addColorStop(1, '#bae6fd');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, 260);
+
+    // Sun glow
+    const sx = 825, sy = 76;
+    const glow = ctx.createRadialGradient(sx, sy, 14, sx, sy, 98);
+    glow.addColorStop(0, 'rgba(254, 249, 195, 0.95)');
+    glow.addColorStop(0.45, 'rgba(253, 224, 71, 0.38)');
+    glow.addColorStop(1, 'rgba(253, 224, 71, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 98, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rotating rays
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(t * 0.18);
+    ctx.strokeStyle = 'rgba(254, 240, 138, 0.55)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang) * 38, Math.sin(ang) * 38);
+      ctx.lineTo(Math.cos(ang) * 54, Math.sin(ang) * 54);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Sun core
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 30, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawCloud(x, y, s) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 24, 0, Math.PI * 2);
+    ctx.arc(24, -8, 28, 0, Math.PI * 2);
+    ctx.arc(54, -2, 24, 0, Math.PI * 2);
+    ctx.arc(74, 8, 17, 0, Math.PI * 2);
+    ctx.arc(-20, 8, 16, 0, Math.PI * 2);
+    ctx.fill();
+    // Soft bottom tint
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(27, 16, 56, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSeagull(g) {
+    const gx = ((g.x - t * g.v) % (W + 120) + (W + 120)) % (W + 120) - 60;
+    const gy = g.y + Math.sin(t * 2.2 + g.phase) * 7;
+    const flap = Math.sin(t * 6.5 + g.phase) * 7;
+    ctx.save();
+    ctx.translate(gx, gy);
+    ctx.scale(g.s, g.s);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-14, -flap);
+    ctx.quadraticCurveTo(-7, -7, 0, 0);
+    ctx.quadraticCurveTo(7, -7, 14, -flap);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawOceanAndWaves() {
+    // Distant island silhouette
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.beginPath();
+    ctx.moveTo(40, 246);
+    ctx.quadraticCurveTo(130, 212, 230, 246);
+    ctx.fill();
+
+    // Ocean body
+    const sea = ctx.createLinearGradient(0, 242, 0, 326);
+    sea.addColorStop(0, '#0284c7');
+    sea.addColorStop(0.55, '#06b6d4');
+    sea.addColorStop(1, '#67e8f9');
+    ctx.fillStyle = sea;
+    ctx.fillRect(0, 242, W, 86);
+
+    // Sunlight sparkles on ocean
+    ctx.fillStyle = 'rgba(254, 249, 195, 0.55)';
+    for (let i = 0; i < 16; i++) {
+      const sy = 250 + i * 4.2;
+      const spread = 12 + i * 3.8;
+      const ox = Math.sin(t * 2.4 + i * 1.7) * 10;
+      ctx.fillRect(825 - spread / 2 + ox, sy, spread, 2);
+    }
+
+    // Sailboats
+    boats.forEach(b => {
+      const bx = ((b.x - t * b.v) % (W + 160) + (W + 160)) % (W + 160) - 80;
+      const by = b.y + Math.sin(t * 2 + b.x) * 2;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.scale(b.s, b.s);
+      // Hull
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.moveTo(-22, 0);
+      ctx.lineTo(22, 0);
+      ctx.lineTo(15, 9);
+      ctx.lineTo(-16, 9);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = b.color;
+      ctx.fillRect(-17, 2, 34, 3);
+      // Sail
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(0, -34);
+      ctx.lineTo(18, -2);
+      ctx.lineTo(0, -2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(-2, -28);
+      ctx.lineTo(-15, -2);
+      ctx.lineTo(-2, -2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Swimmers in shallow water
+    tourists.filter(p => p.type === 'swimmer').forEach(p => {
+      const x = wrapX(p.x, dist * 0.35);
+      if (x < -40 || x > W + 40) return;
+      const bob = Math.sin(t * 3.2 + p.phase) * 2.5;
+      ctx.save();
+      ctx.translate(x, p.y + bob);
+      // Head + swim cap
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(0, -4, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = p.cap;
+      ctx.beginPath();
+      ctx.arc(0, -5, 5.8, Math.PI, 0);
+      ctx.fill();
+      // Splashing arm
+      const arm = Math.sin(t * 4.5 + p.phase) * 6;
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(4, 0);
+      ctx.lineTo(12, -3 + arm * 0.5);
+      ctx.stroke();
+      // Water ripple
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(2, 2, 13 + Math.sin(t * 4 + p.phase) * 2, 3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Golden beach sand
+    const sand = ctx.createLinearGradient(0, 316, 0, 415);
+    sand.addColorStop(0, '#fde68a');
+    sand.addColorStop(0.45, '#fcd34d');
+    sand.addColorStop(1, '#f59e0b');
+    ctx.fillStyle = sand;
+    ctx.fillRect(0, 316, W, 98);
+
+    // Animated foamy shoreline waves
+    for (let layer = 0; layer < 2; layer++) {
+      const waveY = 316 + layer * 8 + Math.sin(t * 2.1 + layer * 1.5) * 4.5;
+      ctx.fillStyle = layer === 0 ? 'rgba(103, 232, 249, 0.72)' : 'rgba(255, 255, 255, 0.85)';
+      ctx.beginPath();
+      ctx.moveTo(0, 304);
+      for (let x = 0; x <= W + 40; x += 40) {
+        const y = waveY + Math.sin((x + dist * 0.45) * 0.025 + t * 2.6 + layer) * 5;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, 304);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawPalmTree(x, baseY) {
+    const sway = Math.sin(t * 1.8 + x * 0.02) * 8;
+    ctx.save();
+    ctx.translate(x, baseY);
+    // Trunk
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 12;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(-14 + sway * 0.3, -60, -8 + sway, -122);
+    ctx.stroke();
+
+    // Trunk rings
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 2;
+    for (let i = 1; i <= 5; i++) {
+      const f = i / 6;
+      const tx = (-10 + sway * 0.6) * f;
+      const ty = -122 * f;
+      ctx.beginPath();
+      ctx.moveTo(tx - 5, ty);
+      ctx.lineTo(tx + 5, ty + 2);
+      ctx.stroke();
+    }
+
+    // Fronds
+    ctx.translate(-8 + sway, -122);
+    const frondAngles = [-2.5, -1.9, -1.2, -0.45, 0.15, 0.7];
+    frondAngles.forEach((ang, idx) => {
+      const a = ang + Math.sin(t * 2.2 + idx) * 0.06;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillStyle = idx % 2 === 0 ? '#16a34a' : '#22c55e';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(26, -15, 58, 6);
+      ctx.quadraticCurveTo(28, -2, 0, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Coconuts
+    ctx.fillStyle = '#713f12';
+    ctx.beginPath();
+    ctx.arc(-3, 5, 4.5, 0, Math.PI * 2);
+    ctx.arc(4, 6, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawUmbrella(u, x) {
+    ctx.save();
+    ctx.translate(x, u.y);
+    // Shadow
+    ctx.fillStyle = 'rgba(180, 83, 9, 0.22)';
+    ctx.beginPath();
+    ctx.ellipse(4, 16, 36, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Beach lounger + relaxing tourist
+    if (u.hasLounger) {
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-26, 14);
+      ctx.lineTo(14, 14);
+      ctx.lineTo(26, 2);
+      ctx.stroke();
+      // Person resting
+      ctx.fillStyle = '#fdba74';
+      ctx.beginPath();
+      ctx.arc(17, 1, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fb7185';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-12, 11);
+      ctx.lineTo(11, 10);
+      ctx.stroke();
+    }
+
+    // Pole
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 15);
+    ctx.lineTo(-4, -30);
+    ctx.stroke();
+
+    // Canopy
+    ctx.save();
+    ctx.translate(-4, -30);
+    ctx.rotate(-0.12);
+    ctx.fillStyle = u.c1;
+    ctx.beginPath();
+    ctx.arc(0, 4, 34, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = u.c2;
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.quadraticCurveTo(-12, -12, -14, 4);
+    ctx.lineTo(14, 4);
+    ctx.quadraticCurveTo(12, -12, 0, -30);
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  }
+
+  function drawTourist(p) {
+    if (p.type === 'swimmer') return;
+    const extraWalk = p.type === 'walker' ? t * 18 * p.dir : 0;
+    const x = wrapX(p.x + extraWalk, dist * 0.55);
+    if (x < -60 || x > W + 60) return;
+
+    const waving = cheerTimer > 0 && Math.abs(x - 420) < 280;
+    ctx.save();
+    ctx.translate(x, p.y);
+
+    // Shadow
+    ctx.fillStyle = 'rgba(180, 83, 9, 0.22)';
+    ctx.beginPath();
+    ctx.ellipse(0, 18, 12, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs
+    const stride = p.type === 'walker' ? Math.sin(t * 5.2 + p.phase) * 7 : 0;
+    ctx.strokeStyle = '#fdba74';
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-3, 5);
+    ctx.lineTo(-4 - stride, 17);
+    ctx.moveTo(3, 5);
+    ctx.lineTo(4 + stride, 17);
+    ctx.stroke();
+
+    // Shorts
+    ctx.fillStyle = p.shorts;
+    ctx.fillRect(-6, -1, 12, 8);
+
+    // Torso
+    ctx.fillStyle = p.shirt;
+    ctx.beginPath();
+    ctx.roundRect(-7, -16, 14, 16, 4);
+    ctx.fill();
+
+    // Head
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(0, -23, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Hair / sun hat
+    ctx.fillStyle = p.hair;
+    ctx.beginPath();
+    ctx.arc(0, -25, 6.6, Math.PI, 0);
+    ctx.fill();
+
+    // Arms
+    ctx.strokeStyle = '#fdba74';
+    ctx.lineWidth = 3;
+    if (waving) {
+      const waveAng = Math.sin(t * 14) * 5;
+      ctx.beginPath();
+      ctx.moveTo(6, -12);
+      ctx.lineTo(14, -24 + waveAng);
+      ctx.moveTo(-6, -12);
+      ctx.lineTo(-11, -3);
+      ctx.stroke();
+    } else if (p.type === 'kite') {
+      // Holding kite string
+      ctx.beginPath();
+      ctx.moveTo(6, -12);
+      ctx.lineTo(14, -20);
+      ctx.moveTo(-6, -12);
+      ctx.lineTo(-10, -2);
+      ctx.stroke();
+
+      // Kite in sky
+      const kx = 54 + Math.sin(t * 2.5 + p.phase) * 14;
+      const ky = -135 + Math.cos(t * 3.1 + p.phase) * 10;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(14, -20);
+      ctx.quadraticCurveTo(32, -65, kx, ky);
+      ctx.stroke();
+
+      // Kite diamond
+      ctx.save();
+      ctx.translate(kx, ky);
+      ctx.rotate(0.28 + Math.sin(t * 3) * 0.12);
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.moveTo(0, -14);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(0, 14);
+      ctx.lineTo(-10, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.moveTo(0, -14);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Kite tail
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(0, 14);
+      ctx.bezierCurveTo(-8, 26, 10, 34, -4, 46);
+      ctx.stroke();
+      ctx.restore();
+    } else if (p.type === 'photo') {
+      // Holding camera/phone toward eagle
+      ctx.beginPath();
+      ctx.moveTo(-6, -12);
+      ctx.lineTo(-14, -17);
+      ctx.moveTo(6, -12);
+      ctx.lineTo(-10, -16);
+      ctx.stroke();
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-18, -21, 7, 5);
+      // Occasional flash
+      if (Math.sin(t * 2.6 + p.phase) > 0.94) {
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath();
+        ctx.arc(-18, -19, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(-6, -12);
+      ctx.lineTo(-10 + stride * 0.6, -2);
+      ctx.moveTo(6, -12);
+      ctx.lineTo(10 - stride * 0.6, -2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawBoardwalk() {
+    // Low coastal wall & wooden railing
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(0, 398, W, 14);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(0, 409, W, 5);
+
+    // Railing posts scrolling at 0.85x foreground speed
+    const postSpacing = 96;
+    const offset = (dist * 0.85) % postSpacing;
+    ctx.fillStyle = '#94a3b8';
+    for (let x = -offset; x < W + postSpacing; x += postSpacing) {
+      ctx.fillRect(x, 384, 7, 16);
+    }
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(0, 382, W, 4);
+
+    // Bike path asphalt
+    const road = ctx.createLinearGradient(0, 412, 0, H);
+    road.addColorStop(0, '#64748b');
+    road.addColorStop(1, '#475569');
+    ctx.fillStyle = road;
+    ctx.fillRect(0, 412, W, H - 412);
+
+    // Coastal terracotta bike lane stripe
+    ctx.fillStyle = '#e07a5f';
+    ctx.fillRect(0, 424, W, 82);
+
+    // Scrolling dashed center line
+    const dashStep = 76;
+    const dashOffset = dist % dashStep;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+    for (let x = -dashOffset; x < W + dashStep; x += dashStep) {
+      ctx.fillRect(x, 463, 38, 4);
+    }
+
+    // Curb edge
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(0, 506, W, 6);
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(0, 512, W, H - 512);
+  }
+
+  function drawWheel(cx, cy, r, rot) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    // Tire
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Rim
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r - 4, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Spokes
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.85)';
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 8; i++) {
+      const a = rot + (i / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * (r - 5), Math.sin(a) * (r - 5));
+      ctx.stroke();
+    }
+
+    // Hub
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEagleAndBike() {
+    // Anchor position of the bicycle on the bike lane
+    const bx = 430;
+    const by = 456;
+    const bob = Math.sin(pedalAngle * 2) * 2.2;
+    const cheerAmt = Math.min(1, cheerTimer > 0 ? Math.sin(Math.min(1, cheerTimer / 1.35) * Math.PI) : 0);
+
+    // Ground shadow
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.28)';
+    ctx.beginPath();
+    ctx.ellipse(bx + 4, by + 39, 98, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(bx, by + bob);
+
+    // Key bike coordinates (relative to bx, by)
+    const rearX = -62, rearY = 4;
+    const frontX = 68, frontY = 4;
+    const bbX = -6, bbY = 6;       // bottom bracket (crank center)
+    const seatX = -32, seatY = -56;
+    const headTopX = 44, headTopY = -60;
+    const handleX = 34, handleY = -74;
+    const crankR = 17;
+
+    // Pedal positions (left = back, right = front)
+    const pBackX = bbX + Math.cos(pedalAngle + Math.PI) * crankR;
+    const pBackY = bbY + Math.sin(pedalAngle + Math.PI) * crankR;
+    const pFrontX = bbX + Math.cos(pedalAngle) * crankR;
+    const pFrontY = bbY + Math.sin(pedalAngle) * crankR;
+
+    // Hip of eagle on saddle
+    const hipX = seatX - 2;
+    const hipY = seatY - 12;
+
+    // 1. Back leg (behind frame)
+    const backKnee = solveIK(hipX, hipY, pBackX, pBackY, 36, 36, -1);
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 6.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hipX, hipY);
+    ctx.lineTo(backKnee.kx, backKnee.ky);
+    ctx.lineTo(pBackX, pBackY);
+    ctx.stroke();
+
+    // Back pedal
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(bbX, bbY);
+    ctx.lineTo(pBackX, pBackY);
+    ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(pBackX - 7, pBackY - 2, 14, 4);
+
+    // 2. Wheels
+    const wheelRot = dist / 35;
+    drawWheel(rearX, rearY, 34, wheelRot);
+    drawWheel(frontX, frontY, 34, wheelRot);
+
+    // 3. Bicycle Frame (bright coastal teal-red cruiser)
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 5.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    // Rear triangle
+    ctx.moveTo(rearX, rearY);
+    ctx.lineTo(bbX, bbY);
+    ctx.lineTo(seatX, seatY + 12);
+    ctx.lineTo(rearX, rearY);
+    // Main triangle
+    ctx.moveTo(bbX, bbY);
+    ctx.lineTo(headTopX + 4, headTopY + 14);
+    ctx.moveTo(seatX, seatY + 12);
+    ctx.lineTo(headTopX + 2, headTopY + 6);
+    // Front fork
+    ctx.moveTo(headTopX, headTopY);
+    ctx.lineTo(frontX, frontY);
+    ctx.stroke();
+
+    // Rear rack + little beach towel
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(rearX - 18, -32);
+    ctx.lineTo(seatX - 4, -32);
+    ctx.lineTo(rearX, rearY);
+    ctx.stroke();
+    // Rolled beach towel on rack
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.roundRect(rearX - 16, -42, 26, 11, 5);
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(rearX - 10, -42, 5, 11);
+    ctx.fillRect(rearX, -42, 5, 11);
+
+    // Seatpost & saddle
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(seatX, seatY + 12);
+    ctx.lineTo(seatX - 3, seatY);
+    ctx.stroke();
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath();
+    ctx.ellipse(seatX - 3, seatY, 15, 5.5, -0.05, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Handlebar stem & bars
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.moveTo(headTopX, headTopY);
+    ctx.lineTo(headTopX - 4, handleY);
+    ctx.lineTo(handleX, handleY);
+    ctx.stroke();
+    // Grip
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(handleX + 2, handleY);
+    ctx.lineTo(handleX - 10, handleY + 2);
+    ctx.stroke();
+
+    // Bell on handlebar
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(handleX + 6, handleY - 5, 4.5, Math.PI, 0);
+    ctx.fill();
+
+    // Bell sound ripples
+    bellRipples.forEach(rp => {
+      if (rp.delay && rp.delay > 0) return;
+      ctx.strokeStyle = `rgba(254, 240, 138, ${rp.alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(handleX + 6, handleY - 7, rp.r, -Math.PI * 0.85, -Math.PI * 0.15);
+      ctx.stroke();
+    });
+
+    // Chainring
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.arc(bbX, bbY, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.arc(bbX, bbY, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. EAGLE!
+    // Tail feathers (white, fanning in wind)
+    ctx.save();
+    ctx.translate(hipX - 18, hipY - 6);
+    ctx.rotate(-0.35 + Math.sin(t * 7) * 0.05);
+    ctx.fillStyle = '#f8fafc';
+    for (let i = -1; i <= 1; i++) {
+      ctx.save();
+      ctx.rotate(i * 0.18);
+      ctx.beginPath();
+      ctx.ellipse(-18, 0, 20, 6.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // Back wing (reaching to handlebar)
+    ctx.save();
+    ctx.fillStyle = '#451a03';
+    ctx.beginPath();
+    ctx.moveTo(hipX + 18, hipY - 34);
+    ctx.quadraticCurveTo(handleX - 8, handleY - 12, handleX - 2, handleY);
+    ctx.quadraticCurveTo(handleX - 14, handleY + 6, hipX + 6, hipY - 22);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Eagle torso (rich dark brown feathers)
+    ctx.save();
+    ctx.translate(hipX + 10, hipY - 26);
+    ctx.rotate(0.42 - cheerAmt * 0.12);
+    ctx.fillStyle = '#5c2d16';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 24, 34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Subtle chest highlight
+    ctx.fillStyle = '#7c3f1d';
+    ctx.beginPath();
+    ctx.ellipse(7, -4, 13, 24, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Eagle white head & neck
+    const headX = hipX + 26;
+    const headY = hipY - 62 - cheerAmt * 5;
+    ctx.save();
+    ctx.translate(headX, headY);
+    ctx.rotate(-0.08 - cheerAmt * 0.14);
+
+    // White neck feathers (scalloped collar)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-16, 18);
+    ctx.quadraticCurveTo(-18, -2, -6, -15);
+    ctx.quadraticCurveTo(12, -20, 17, -4);
+    ctx.quadraticCurveTo(16, 12, 8, 22);
+    ctx.lineTo(2, 16);
+    ctx.lineTo(-4, 23);
+    ctx.lineTo(-10, 16);
+    ctx.closePath();
+    ctx.fill();
+
+    // Wind-swept crest feathers
+    const crestWave = Math.sin(t * 11) * 2;
+    ctx.beginPath();
+    ctx.moveTo(-10, -10);
+    ctx.quadraticCurveTo(-24, -14 + crestWave, -22, -6 + crestWave);
+    ctx.quadraticCurveTo(-15, -4, -10, -4);
+    ctx.fill();
+
+    // Golden hooked beak
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(13, -8);
+    ctx.quadraticCurveTo(32, -9, 31, 4);
+    ctx.quadraticCurveTo(25, 2, 13, 2);
+    ctx.closePath();
+    ctx.fill();
+    // Lower beak (opens when cheering!)
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.moveTo(13, 2);
+    ctx.lineTo(24, 3 + cheerAmt * 6);
+    ctx.lineTo(13, 6 + cheerAmt * 3);
+    ctx.closePath();
+    ctx.fill();
+
+    // Fierce-cool eye + brow
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(8, -5, 4.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(9.2, -5, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(10, -6, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    // Brow ridge
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(2, -9);
+    ctx.lineTo(13, -7.5);
+    ctx.stroke();
+
+    // Cheer "鸣!" text pop when ringing bell
+    if (cheerAmt > 0.2) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${cheerAmt})`;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('叮铃~', 34, -14);
+    }
+    ctx.restore();
+
+    // 5. Front leg (over frame, pedaling with IK!)
+    const frontKnee = solveIK(hipX + 4, hipY, pFrontX, pFrontY, 36, 36, -1);
+    // Feathered thigh
+    ctx.strokeStyle = '#5c2d16';
+    ctx.lineWidth = 11;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hipX + 4, hipY);
+    ctx.lineTo((hipX + 4 + frontKnee.kx) * 0.5, (hipY + frontKnee.ky) * 0.5);
+    ctx.stroke();
+
+    // Golden-yellow eagle lower leg
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 6.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo((hipX + 4 + frontKnee.kx) * 0.5, (hipY + frontKnee.ky) * 0.5);
+    ctx.lineTo(frontKnee.kx, frontKnee.ky);
+    ctx.lineTo(pFrontX, pFrontY);
+    ctx.stroke();
+
+    // Front crank & pedal
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.moveTo(bbX, bbY);
+    ctx.lineTo(pFrontX, pFrontY);
+    ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(pFrontX - 8, pFrontY - 2, 16, 4.5);
+
+    // Eagle talons gripping front pedal
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(pFrontX - 2, pFrontY - 2);
+    ctx.lineTo(pFrontX + 6, pFrontY - 2);
+    ctx.moveTo(pFrontX - 1, pFrontY - 2);
+    ctx.lineTo(pFrontX + 3, pFrontY + 2);
+    ctx.stroke();
+
+    // 6. Front wing (either gripping handlebar or spreading majestically during cheer/sprint!)
+    ctx.save();
+    const shoulderX = hipX + 16;
+    const shoulderY = hipY - 38;
+    ctx.translate(shoulderX, shoulderY);
+    if (cheerAmt > 0.05) {
+      // Spread wing upward proudly!
+      const flap = -cheerAmt * 1.15 + Math.sin(t * 16) * 0.12 * cheerAmt;
+      ctx.rotate(flap);
+      ctx.fillStyle = '#6b3416';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(22, -26, 62, -16);
+      ctx.lineTo(54, -4);
+      ctx.lineTo(60, 4);
+      ctx.lineTo(44, 10);
+      ctx.quadraticCurveTo(18, 12, 0, 10);
+      ctx.closePath();
+      ctx.fill();
+      // Wing feather tips
+      ctx.strokeStyle = '#3b1a08';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(22, -6); ctx.lineTo(54, -8);
+      ctx.moveTo(20, 2);  ctx.lineTo(48, 4);
+      ctx.stroke();
+    } else {
+      // Gripping handlebar with primary feathers trailing slightly back
+      const wingBob = Math.sin(pedalAngle * 2) * 0.04;
+      ctx.rotate(wingBob);
+      ctx.fillStyle = '#6b3416';
+      ctx.beginPath();
+      ctx.moveTo(-4, -2);
+      ctx.quadraticCurveTo(18, -8, handleX - shoulderX - 4, handleY - shoulderY + 2);
+      ctx.quadraticCurveTo(12, 12, -14, 14);
+      ctx.closePath();
+      ctx.fill();
+      // Feather detail
+      ctx.strokeStyle = '#3b1a08';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-8, 6);
+      ctx.lineTo(14, 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Speed wind lines when sprinting
+    if (speed > 1.5) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 4; i++) {
+        const lx = -115 - ((t * 260 + i * 70) % 90);
+        const ly = -85 + i * 32;
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.lineTo(lx + 34, ly);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  let lastTime = performance.now();
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    if (!paused) {
+      speed += (targetSpeed - speed) * Math.min(1, dt * 5);
+      t += dt;
+      dist += dt * 135 * speed;
+      pedalAngle += dt * 5.2 * speed;
+      if (cheerTimer > 0) cheerTimer = Math.max(0, cheerTimer - dt);
+
+      // Update bell ripples
+      bellRipples.forEach(rp => {
+        if (rp.delay && rp.delay > 0) {
+          rp.delay -= dt;
+        } else {
+          rp.r += dt * 42;
+          rp.alpha -= dt * 1.15;
+        }
+      });
+      bellRipples = bellRipples.filter(rp => rp.alpha > 0);
+    }
+
+    resize();
+    ctx.save();
+    ctx.scale(canvas.width / W, canvas.height / H);
+
+    // 1. Sky & Sun
+    drawSkyAndSun();
+
+    // 2. Clouds
+    clouds.forEach(c => {
+      const cx = ((c.x - t * c.v) % (W + 240) + (W + 240)) % (W + 240) - 120;
+      drawCloud(cx, c.y, c.s);
+    });
+
+    // 3. Seagulls
+    gulls.forEach(drawSeagull);
+
+    // 4. Ocean, boats, swimmers & beach waves
+    drawOceanAndWaves();
+
+    // 5. Beach umbrellas & palm trees
+    umbrellas.forEach(u => {
+      const ux = wrapX(u.x, dist * 0.55);
+      if (ux > -80 && ux < W + 80) drawUmbrella(u, ux);
+    });
+    palms.forEach(px => {
+      const x = wrapX(px, dist * 0.68);
+      if (x > -90 && x < W + 90) drawPalmTree(x, 396);
+    });
+
+    // 6. Tourists on the beach
+    tourists.forEach(drawTourist);
+
+    // 7. Seaside boardwalk & bike lane
+    drawBoardwalk();
+
+    // 8. Eagle riding bicycle
+    drawEagleAndBike();
+
+    ctx.restore();
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
 </body>
 </html>
