@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
+  <title>Hello EdgeOne Pages — 部署已跑通</title>
   <style>
     * {
       box-sizing: border-box;
@@ -15,30 +15,55 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #064e3b 0%, #0f172a 55%, #1e3a8a 100%);
       color: #f8fafc;
     }
     main {
       text-align: center;
-      padding: 2rem;
+      padding: 2.5rem 2rem;
+      border-radius: 20px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      backdrop-filter: blur(12px);
+      max-width: 560px;
+      width: 90%;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(52, 211, 153, 0.5);
+      color: #6ee7b7;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
     }
     h1 {
-      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-size: clamp(2rem, 5.5vw, 3.5rem);
       font-weight: 700;
       letter-spacing: -0.02em;
       margin-bottom: 0.75rem;
     }
     p {
-      font-size: 1.125rem;
+      font-size: 1.05rem;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+    .meta {
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
       color: #94a3b8;
     }
   </style>
 </head>
 <body>
   <main>
-    <h1>Hello, World!</h1>
-    <p>Deployed via GitHub &amp; EdgeOne Pages</p>
+    <div class="badge">● 自动部署测试成功</div>
+    <h1>Hello, EdgeOne Pages!</h1>
+    <p>GitHub <code>main</code> 分支更新已成功同步到 EdgeOne Pages。</p>
+    <p class="meta">更新时间：2026-11-28 01:25 (UTC+8)</p>
   </main>
 </body>
 </html>
